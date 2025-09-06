@@ -1,4 +1,4 @@
-package com.google.ai.edge.gallery.ui.notes
+﻿package com.google.ai.edge.gallery.ui.notes
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,7 +80,7 @@ fun NotesHomeScreen(
   LaunchedEffect(refreshKey) { vm.load() }
 
   Scaffold(
-    containerColor = Color(0xFF121212), // Soft black background
+    containerColor = Color.White, // Light background
     topBar = {
       Row(
         modifier = Modifier
@@ -94,11 +94,11 @@ fun NotesHomeScreen(
           style = MaterialTheme.typography.headlineMedium,
           fontWeight = FontWeight.Bold,
           fontSize = 28.sp,
-          color = Color.White,
+          color = Color.Black,
           modifier = Modifier.weight(1f)
         )
         IconButton(onClick = onOpenSettings) {
-          Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Settings", tint = Color.White)
+          Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Settings", tint = Color.Black)
         }
       }
     },
@@ -194,7 +194,7 @@ private fun NotesList(
       ) {
         Text(
           "There are no notes",
-          color = Color.White,
+          color = Color.Black,
           style = MaterialTheme.typography.titleMedium,
           textAlign = TextAlign.Center,
           modifier = Modifier.fillMaxWidth(),
@@ -202,7 +202,7 @@ private fun NotesList(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           "You need to get a Hugging Face token and download the model once.",
-          color = Color.White,
+          color = Color.Black,
           style = MaterialTheme.typography.bodyMedium,
           textAlign = TextAlign.Center,
           modifier = Modifier.fillMaxWidth(),
