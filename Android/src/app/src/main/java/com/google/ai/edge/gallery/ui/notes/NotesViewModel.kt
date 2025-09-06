@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +29,8 @@ private const val TAG = "AGNotesVM"
 class NotesViewModel @Inject constructor(private val repo: NotesRepository) : ViewModel() {
   private val _notes = MutableStateFlow<List<Note>>(emptyList())
   val notes = _notes.asStateFlow()
+  private val _isCreating = MutableStateFlow(false)
+  val isCreating = _isCreating.asStateFlow()
 
   fun load() {
     viewModelScope.launch(Dispatchers.IO) { _notes.value = repo.all() }
@@ -38,9 +41,11 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
     modelManagerViewModel: ModelManagerViewModel,
     userDescription: String,
     onError: (String) -> Unit,
+    onSuccess: () -> Unit,
   ) {
     viewModelScope.launch(Dispatchers.Default) {
       try {
+        _isCreating.value = true
         val now = System.currentTimeMillis()
         val (model, task) = pickAvailableLlmModel(modelManagerViewModel)
           ?: run {
@@ -56,6 +61,7 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
             )
             repo.add(fallback)
             load()
+            withContext(Dispatchers.Main) { onSuccess() }
             return@launch
           }
 
@@ -77,9 +83,12 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
           )
         repo.add(note)
         load()
+        withContext(Dispatchers.Main) { onSuccess() }
       } catch (e: Exception) {
         Log.e(TAG, "Failed to create note", e)
-        onError(e.message ?: "Failed to create note")
+        withContext(Dispatchers.Main) { onError(e.message ?: "Failed to create note") }
+      } finally {
+        _isCreating.value = false
       }
     }
   }

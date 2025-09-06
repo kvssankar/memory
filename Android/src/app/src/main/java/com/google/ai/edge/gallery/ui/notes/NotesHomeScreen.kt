@@ -22,7 +22,9 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -40,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,18 +52,20 @@ import com.google.ai.edge.gallery.data.AppBarActionType
 import com.google.ai.edge.gallery.data.notes.Note
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import kotlinx.coroutines.launch
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesHomeScreen(modelManagerViewModel: ModelManagerViewModel) {
   val vm: NotesViewModel = hiltViewModel()
   val notes by vm.notes.collectAsState()
+  val isCreating by vm.isCreating.collectAsState()
   val snackbarHostState = remember { SnackbarHostState() }
   val scope = rememberCoroutineScope()
 
   var showCreateDialog by remember { mutableStateOf(false) }
   var descriptionInput by remember { mutableStateOf("") }
-  val context = androidx.compose.ui.platform.LocalContext.current
+  val context = LocalContext.current
 
   LaunchedEffect(Unit) { vm.load() }
 
@@ -83,8 +88,13 @@ fun NotesHomeScreen(modelManagerViewModel: ModelManagerViewModel) {
       }
     },
   ) { innerPadding ->
-    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-      NotesList(notes = notes, contentPadding = PaddingValues(12.dp))
+    Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+      if (isCreating) {
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+      }
+      Box(modifier = Modifier.fillMaxSize()) {
+        NotesList(notes = notes, contentPadding = PaddingValues(12.dp))
+      }
     }
   }
 
@@ -96,27 +106,44 @@ fun NotesHomeScreen(modelManagerViewModel: ModelManagerViewModel) {
         Column(modifier = Modifier.fillMaxWidth()) {
           Text("Enter a short description")
           Spacer(modifier = Modifier.height(8.dp))
-          TextField(value = descriptionInput, onValueChange = { descriptionInput = it }, singleLine = false)
+          TextField(
+            value = descriptionInput,
+            onValueChange = { descriptionInput = it },
+            singleLine = false,
+            minLines = 4,
+            maxLines = 6,
+            modifier = Modifier.fillMaxWidth()
+          )
+          Spacer(modifier = Modifier.height(12.dp))
+          Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+              onClick = {
+                val description = descriptionInput.trim()
+                if (description.isEmpty()) {
+                  Toast.makeText(context, "Description cannot be empty", Toast.LENGTH_SHORT).show()
+                  return@Button
+                }
+                descriptionInput = ""
+                showCreateDialog = false
+                vm.createTextNote(
+                  context = context,
+                  modelManagerViewModel = modelManagerViewModel,
+                  userDescription = description,
+                  onError = { err ->
+                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                  },
+                  onSuccess = {
+                    Toast.makeText(context, "Note created", Toast.LENGTH_SHORT).show()
+                  },
+                )
+              }
+            ) { Text("Create") }
+            TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") }
+          }
         }
       },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            val description = descriptionInput
-            descriptionInput = ""
-            showCreateDialog = false
-            vm.createTextNote(
-              context = context,
-              modelManagerViewModel = modelManagerViewModel,
-              userDescription = description,
-              onError = { err ->
-                scope.launch { snackbarHostState.showSnackbar(err) }
-              },
-            )
-          }
-        ) { Text("Create") }
-      },
-      dismissButton = { TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") } },
+      confirmButton = {},
+      dismissButton = {},
     )
   }
 }
