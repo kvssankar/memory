@@ -64,6 +64,7 @@ fun NotesHomeScreen(
   modelManagerViewModel: ModelManagerViewModel,
   onOpenSettings: () -> Unit = {},
   onOpenNote: (Long) -> Unit = {},
+  refreshKey: Int = 0,
 ) {
   val vm: NotesViewModel = hiltViewModel()
   val notes by vm.notes.collectAsState()
@@ -75,7 +76,7 @@ fun NotesHomeScreen(
   var descriptionInput by remember { mutableStateOf("") }
   val context = LocalContext.current
 
-  LaunchedEffect(Unit) { vm.load() }
+  LaunchedEffect(refreshKey) { vm.load() }
 
   Scaffold(
     containerColor = Color(0xFF121212), // Soft black background

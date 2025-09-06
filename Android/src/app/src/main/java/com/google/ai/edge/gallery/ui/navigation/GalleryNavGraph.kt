@@ -148,11 +148,15 @@ fun GalleryNavHost(
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
+  // Refresh key to reload notes list when returning from editor
+  var refreshNotesKey by remember { mutableStateOf(0) }
+
   // New home screen: Notes
   com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(
     modelManagerViewModel = modelManagerViewModel,
     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
     onOpenNote = { id -> navController.navigate("$ROUTE_NOTE/$id") },
+    refreshKey = refreshNotesKey,
   )
 
   // Model manager.
@@ -203,7 +207,11 @@ fun GalleryNavHost(
       val noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L
       com.google.ai.edge.gallery.ui.notes.NoteEditorScreen(
         noteId = noteId,
-        onNavigateUp = { navController.navigateUp() },
+        onNavigateUp = {
+          // Ensure notes list refreshes after update
+          refreshNotesKey++
+          navController.navigateUp()
+        },
       )
     }
 
