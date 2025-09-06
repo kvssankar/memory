@@ -31,6 +31,8 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
   val notes = _notes.asStateFlow()
   private val _isCreating = MutableStateFlow(false)
   val isCreating = _isCreating.asStateFlow()
+  private val _editingNote = MutableStateFlow<Note?>(null)
+  val editingNote = _editingNote.asStateFlow()
 
   fun load() {
     viewModelScope.launch(Dispatchers.IO) { _notes.value = repo.all() }
@@ -89,6 +91,43 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
         withContext(Dispatchers.Main) { onError(e.message ?: "Failed to create note") }
       } finally {
         _isCreating.value = false
+      }
+    }
+  }
+
+  fun loadNote(id: Long) {
+    viewModelScope.launch(Dispatchers.IO) { _editingNote.value = repo.getById(id) }
+  }
+
+  fun updateNote(
+    noteId: Long,
+    newTitle: String,
+    newDescription: String,
+    newTags: List<String>,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit,
+  ) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val existing = repo.getById(noteId) ?: run {
+          withContext(Dispatchers.Main) { onError("Note not found") }
+          return@launch
+        }
+        val now = System.currentTimeMillis()
+        val updated =
+          existing.copy(
+            title = newTitle,
+            description = newDescription,
+            tags = newTags.map { it.trim() }.filter { it.isNotEmpty() },
+            updatedAt = now,
+          )
+        repo.update(updated)
+        _editingNote.value = updated
+        // Refresh list view state too
+        _notes.value = repo.all()
+        withContext(Dispatchers.Main) { onSuccess() }
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) { onError(e.message ?: "Failed to update note") }
       }
     }
   }

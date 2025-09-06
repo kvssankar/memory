@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
@@ -62,6 +63,7 @@ import android.widget.Toast
 fun NotesHomeScreen(
   modelManagerViewModel: ModelManagerViewModel,
   onOpenSettings: () -> Unit = {},
+  onOpenNote: (Long) -> Unit = {},
 ) {
   val vm: NotesViewModel = hiltViewModel()
   val notes by vm.notes.collectAsState()
@@ -115,7 +117,7 @@ fun NotesHomeScreen(
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
       }
       Box(modifier = Modifier.fillMaxSize()) {
-        NotesList(notes = notes, contentPadding = PaddingValues(12.dp))
+        NotesList(notes = notes, contentPadding = PaddingValues(12.dp), onOpenNote = onOpenNote)
       }
     }
   }
@@ -171,7 +173,11 @@ fun NotesHomeScreen(
 }
 
 @Composable
-private fun NotesList(notes: List<Note>, contentPadding: PaddingValues) {
+private fun NotesList(
+  notes: List<Note>,
+  contentPadding: PaddingValues,
+  onOpenNote: (Long) -> Unit,
+) {
   if (notes.isEmpty()) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
       Text("No notes yet. Tap + to add one.")
@@ -188,15 +194,15 @@ private fun NotesList(notes: List<Note>, contentPadding: PaddingValues) {
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
       itemsIndexed(notes) { index, note ->
         val bg = cardPalette[index % cardPalette.size]
-        NoteCard(note = note, backgroundColor = bg)
+        NoteCard(note = note, backgroundColor = bg, onClick = { onOpenNote(note.id) })
       }
     }
   }
 }
 
 @Composable
-private fun NoteCard(note: Note, backgroundColor: Color) {
-  Card(colors = CardDefaults.cardColors(containerColor = backgroundColor)) {
+private fun NoteCard(note: Note, backgroundColor: Color, onClick: () -> Unit) {
+  Card(colors = CardDefaults.cardColors(containerColor = backgroundColor), modifier = Modifier.clickable { onClick() }) {
     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
       Text(
         text = note.title,

@@ -88,9 +88,59 @@ class NotesDatabaseHelper(context: Context) :
     }
     return notes
   }
+
+  fun getById(id: Long): Note? {
+    val c =
+      readableDatabase.query(
+        TABLE_NOTES,
+        null,
+        "id=?",
+        arrayOf(id.toString()),
+        null,
+        null,
+        null,
+      )
+    c.use { cursor ->
+      return if (cursor.moveToFirst()) {
+        Note(
+          id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+          type = cursor.getString(cursor.getColumnIndexOrThrow("type")),
+          title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+          tags = cursor
+            .getString(cursor.getColumnIndexOrThrow("tags"))
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() },
+          description = cursor.getString(cursor.getColumnIndexOrThrow("description")),
+          aiDescription = cursor.getString(cursor.getColumnIndexOrThrow("ai_description")),
+          imagePath = cursor.getString(cursor.getColumnIndexOrThrow("image_path")),
+          createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
+          updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
+        )
+      } else {
+        null
+      }
+    }
+  }
+
+  fun update(note: Note): Int {
+    val values = ContentValues().apply {
+      put("type", note.type)
+      put("title", note.title)
+      put("tags", note.tags.joinToString(","))
+      put("description", note.description)
+      put("ai_description", note.aiDescription)
+      put("image_path", note.imagePath)
+      put("created_at", note.createdAt)
+      put("updated_at", note.updatedAt)
+    }
+    return writableDatabase.update(TABLE_NOTES, values, "id=?", arrayOf(note.id.toString()))
+  }
 }
 
 class NotesRepository(private val db: NotesDatabaseHelper) {
   fun add(note: Note): Long = db.insert(note)
   fun all(): List<Note> = db.listAll()
+  fun getById(id: Long): Note? = db.getById(id)
+  fun update(note: Note): Int = db.update(note)
 }

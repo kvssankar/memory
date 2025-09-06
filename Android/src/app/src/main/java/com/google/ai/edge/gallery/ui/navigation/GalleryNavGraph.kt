@@ -80,6 +80,7 @@ private const val TAG = "AGGalleryNavGraph"
 private const val ROUTE_PLACEHOLDER = "placeholder"
 private const val ROUTE_MODEL = "route_model"
 private const val ROUTE_SETTINGS = "route_settings"
+private const val ROUTE_NOTE = "route_note"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -151,6 +152,7 @@ fun GalleryNavHost(
   com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(
     modelManagerViewModel = modelManagerViewModel,
     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+    onOpenNote = { id -> navController.navigate("$ROUTE_NOTE/$id") },
   )
 
   // Model manager.
@@ -187,6 +189,20 @@ fun GalleryNavHost(
     composable(route = ROUTE_SETTINGS, enterTransition = { slideEnter() }, exitTransition = { slideExit() }) {
       SettingsScreen(
         modelManagerViewModel = modelManagerViewModel,
+        onNavigateUp = { navController.navigateUp() },
+      )
+    }
+
+    // Note editor screen
+    composable(
+      route = "$ROUTE_NOTE/{noteId}",
+      arguments = listOf(navArgument("noteId") { type = NavType.LongType }),
+      enterTransition = { slideEnter() },
+      exitTransition = { slideExit() },
+    ) { backStackEntry ->
+      val noteId = backStackEntry.arguments?.getLong("noteId") ?: -1L
+      com.google.ai.edge.gallery.ui.notes.NoteEditorScreen(
+        noteId = noteId,
         onNavigateUp = { navController.navigateUp() },
       )
     }
