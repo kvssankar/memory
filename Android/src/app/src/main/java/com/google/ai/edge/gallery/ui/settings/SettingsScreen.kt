@@ -16,8 +16,6 @@
 
 package com.google.ai.edge.gallery.ui.settings
 
-import android.app.UiModeManager
-import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,11 +30,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,11 +41,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -72,11 +65,9 @@ import com.google.ai.edge.gallery.BuildConfig
 import com.google.ai.edge.gallery.GalleryTopAppBar
 import com.google.ai.edge.gallery.R
 import com.google.ai.edge.gallery.data.BuiltInTaskId
-import com.google.ai.edge.gallery.proto.Theme
 import com.google.ai.edge.gallery.ui.common.DownloadAndTryButton
 import com.google.ai.edge.gallery.ui.common.tos.TosDialog
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
-import com.google.ai.edge.gallery.ui.theme.ThemeSettings
 import com.google.ai.edge.gallery.ui.theme.labelSmallNarrow
 import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import java.time.Instant
@@ -85,8 +76,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.min
 
-private val THEME_OPTIONS = listOf(Theme.THEME_AUTO, Theme.THEME_LIGHT, Theme.THEME_DARK)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -94,7 +83,6 @@ fun SettingsScreen(
   onNavigateUp: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  var selectedTheme by remember { mutableStateOf(modelManagerViewModel.readThemeOverride()) }
   var hfToken by remember { mutableStateOf(modelManagerViewModel.getTokenStatusAndData().data) }
   val dateFormatter = remember {
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -137,38 +125,7 @@ fun SettingsScreen(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
 
-      // Theme switcher.
-      Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-          "Theme",
-          style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-        )
-        MultiChoiceSegmentedButtonRow {
-          THEME_OPTIONS.forEachIndexed { index, theme ->
-            SegmentedButton(
-              shape = SegmentedButtonDefaults.itemShape(index = index, count = THEME_OPTIONS.size),
-              onCheckedChange = {
-                selectedTheme = theme
-                ThemeSettings.themeOverride.value = theme
-                modelManagerViewModel.saveThemeOverride(theme)
-
-                val uiModeManager =
-                  context.applicationContext.getSystemService(Context.UI_MODE_SERVICE)
-                    as UiModeManager
-                if (theme == Theme.THEME_AUTO) {
-                  uiModeManager.setApplicationNightMode(UiModeManager.MODE_NIGHT_AUTO)
-                } else if (theme == Theme.THEME_LIGHT) {
-                  uiModeManager.setApplicationNightMode(UiModeManager.MODE_NIGHT_NO)
-                } else {
-                  uiModeManager.setApplicationNightMode(UiModeManager.MODE_NIGHT_YES)
-                }
-              },
-              checked = theme == selectedTheme,
-              label = { Text(themeLabel(theme)) },
-            )
-          }
-        }
-      }
+      // Theme options removed.
 
       // HF Token management.
       Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -279,13 +236,7 @@ fun SettingsScreen(
           modelManagerViewModel = modelManagerViewModel,
         )
 
-        // Chat: gemma3-1b-it
-        QuickDownloadCard(
-          title = "Chat: gemma3-1b-it",
-          taskId = BuiltInTaskId.LLM_CHAT,
-          modelName = "gemma3-1b-it",
-          modelManagerViewModel = modelManagerViewModel,
-        )
+        // Only the first quick download is shown.
       }
 
       // Third party licenses
@@ -372,6 +323,11 @@ private fun QuickDownloadCard(
         }
         resolvedModel != null -> {
           val status = uiState.modelDownloadStatus[resolvedModel.name]
+          Text(
+            resolvedModel.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+          )
           DownloadAndTryButton(
             task = task,
             model = resolvedModel,
@@ -392,14 +348,5 @@ private fun QuickDownloadCard(
         }
       }
     }
-  }
-}
-
-private fun themeLabel(theme: Theme): String {
-  return when (theme) {
-    Theme.THEME_AUTO -> "Auto"
-    Theme.THEME_LIGHT -> "Light"
-    Theme.THEME_DARK -> "Dark"
-    else -> "Unknown"
   }
 }
