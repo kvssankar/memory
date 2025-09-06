@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -118,7 +119,12 @@ fun NotesHomeScreen(
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
       }
       Box(modifier = Modifier.fillMaxSize()) {
-        NotesList(notes = notes, contentPadding = PaddingValues(12.dp), onOpenNote = onOpenNote)
+        NotesList(
+          notes = notes,
+          contentPadding = PaddingValues(12.dp),
+          onOpenNote = onOpenNote,
+          onOpenSettings = onOpenSettings,
+        )
       }
     }
   }
@@ -178,10 +184,32 @@ private fun NotesList(
   notes: List<Note>,
   contentPadding: PaddingValues,
   onOpenNote: (Long) -> Unit,
+  onOpenSettings: () -> Unit,
 ) {
   if (notes.isEmpty()) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Text("No notes yet. Tap + to add one.")
+      Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(24.dp)
+      ) {
+        Text(
+          "There are no notes",
+          color = Color.White,
+          style = MaterialTheme.typography.titleMedium,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+          "You need to get a Hugging Face token and download the model once.",
+          color = Color.White,
+          style = MaterialTheme.typography.bodyMedium,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onOpenSettings) { Text("Get Started") }
+      }
     }
   } else {
     val cardPalette = listOf(
