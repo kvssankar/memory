@@ -147,16 +147,8 @@ fun GalleryNavHost(
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
-  HomeScreen(
-    modelManagerViewModel = modelManagerViewModel,
-    tosViewModel = hiltViewModel(),
-    navigateToTaskScreen = { task ->
-      pickedTask = task
-      showModelManager = true
-      firebaseAnalytics?.logEvent("capability_select", bundleOf("capability_name" to task.id))
-    },
-    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-  )
+  // New home screen: Notes
+  com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(modelManagerViewModel = modelManagerViewModel)
 
   // Model manager.
   AnimatedVisibility(

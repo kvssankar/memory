@@ -31,6 +31,8 @@ import com.google.ai.edge.gallery.data.DefaultDownloadRepository
 import com.google.ai.edge.gallery.data.DownloadRepository
 import com.google.ai.edge.gallery.proto.Settings
 import com.google.ai.edge.gallery.proto.UserData
+import com.google.ai.edge.gallery.data.notes.NotesDatabaseHelper
+import com.google.ai.edge.gallery.data.notes.NotesRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -107,5 +109,12 @@ internal object AppModule {
     lifecycleProvider: AppLifecycleProvider,
   ): DownloadRepository {
     return DefaultDownloadRepository(context, lifecycleProvider)
+  }
+
+  // Provides local Notes repository (SQLite)
+  @Provides
+  @Singleton
+  fun provideNotesRepository(@ApplicationContext context: Context): NotesRepository {
+    return NotesRepository(NotesDatabaseHelper(context))
   }
 }
