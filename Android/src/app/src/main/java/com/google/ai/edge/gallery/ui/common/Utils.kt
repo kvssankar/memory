@@ -170,12 +170,14 @@ fun checkNotificationPermissionAndStartDownload(
   when (PackageManager.PERMISSION_GRANTED) {
     // Already got permission. Call the lambda.
     ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) -> {
+      android.util.Log.d(TAG, "Notification permission granted. Starting download for '${model.name}'")
       modelManagerViewModel.downloadModel(task = task, model = model)
     }
 
     // Otherwise, ask for permission
     else -> {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        android.util.Log.d(TAG, "Requesting notification permission for download '${model.name}'")
         launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
       }
     }

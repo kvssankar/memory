@@ -95,6 +95,10 @@ class DefaultDownloadRepository(
     model: Model,
     onStatusUpdated: (model: Model, status: ModelDownloadStatus) -> Unit,
   ) {
+    Log.d(
+      TAG,
+      "downloadModel enqueue for '${model.name}' (url=${model.url}, version=${model.version}, totalBytes=${model.totalBytes}, isZip=${model.isZip}, extraFiles=${model.extraDataFiles.size}, tokenPresent=${model.accessToken != null})",
+    )
     // Create input data.
     val builder = Data.Builder()
     val totalBytes = model.totalBytes + model.extraDataFiles.sumOf { it.sizeInBytes }
@@ -134,9 +138,11 @@ class DefaultDownloadRepository(
     val workerId = downloadWorkRequest.id
 
     // Start!
+    Log.d(TAG, "Enqueue unique work for '${model.name}', workerId=$workerId")
     workManager.enqueueUniqueWork(model.name, ExistingWorkPolicy.REPLACE, downloadWorkRequest)
 
     // Observe progress.
+    Log.d(TAG, "Start observing worker progress for '${model.name}', workerId=$workerId")
     observerWorkerProgress(
       workerId = workerId,
       task = task,
@@ -146,6 +152,7 @@ class DefaultDownloadRepository(
   }
 
   override fun cancelDownloadModel(model: Model) {
+    Log.d(TAG, "cancelDownloadModel for '${model.name}' (cancel by tag)")
     workManager.cancelAllWorkByTag("$MODEL_NAME_TAG:${model.name}")
   }
 
@@ -166,6 +173,7 @@ class DefaultDownloadRepository(
       if (workInfo != null) {
         when (workInfo.state) {
           WorkInfo.State.ENQUEUED -> {
+            Log.d(TAG, "Worker ENQUEUED: workerId=$workerId, model='${model.name}'")
             downloadStartTimeSharedPreferences.edit {
               putLong(model.name, System.currentTimeMillis())
             }
@@ -176,6 +184,7 @@ class DefaultDownloadRepository(
           }
 
           WorkInfo.State.RUNNING -> {
+            Log.d(TAG, "Worker RUNNING: workerId=$workerId, model='${model.name}'")
             val receivedBytes = workInfo.progress.getLong(KEY_MODEL_DOWNLOAD_RECEIVED_BYTES, 0L)
             val downloadRate = workInfo.progress.getLong(KEY_MODEL_DOWNLOAD_RATE, 0L)
             val remainingSeconds = workInfo.progress.getLong(KEY_MODEL_DOWNLOAD_REMAINING_MS, 0L)
@@ -203,7 +212,7 @@ class DefaultDownloadRepository(
           }
 
           WorkInfo.State.SUCCEEDED -> {
-            Log.d("repo", "worker %s success".format(workerId.toString()))
+            Log.d(TAG, "Worker SUCCEEDED: workerId=$workerId, model='${model.name}'")
             onStatusUpdated(model, ModelDownloadStatus(status = ModelDownloadStatusType.SUCCEEDED))
             sendNotification(
               title = context.getString(R.string.notification_title_success),
@@ -229,10 +238,7 @@ class DefaultDownloadRepository(
           WorkInfo.State.CANCELLED -> {
             var status = ModelDownloadStatusType.FAILED
             val errorMessage = workInfo.outputData.getString(KEY_MODEL_DOWNLOAD_ERROR_MESSAGE) ?: ""
-            Log.d(
-              "repo",
-              "worker %s FAILED or CANCELLED: %s".format(workerId.toString(), errorMessage),
-            )
+            Log.d(TAG, "Worker ${workInfo.state}: workerId=$workerId, model='${model.name}', error='${errorMessage}'")
             if (workInfo.state == WorkInfo.State.CANCELLED) {
               status = ModelDownloadStatusType.NOT_DOWNLOADED
             } else {

@@ -106,11 +106,16 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
 
     return withContext(Dispatchers.IO) {
       if (fileUrl == null || fileName == null) {
+        Log.e(TAG, "Invalid worker input: fileUrl=$fileUrl, fileName=$fileName")
         Result.failure()
       } else {
         return@withContext try {
           // Set the worker as a foreground service immediately.
           setForeground(createForegroundInfo(progress = 0, modelName = modelName))
+          Log.d(
+            TAG,
+            "Worker started for model='${modelName}', url=${fileUrl}, version=${version}, isZip=${isZip}, unzipDir=${unzippedDir}, extraFiles=${extraDataFileUrls.size}, tokenPresent=${accessToken != null}, totalBytes=${totalBytes}",
+          )
 
           // Collect data for all files.
           val allFiles: MutableList<UrlAndFileName> = mutableListOf()
@@ -120,7 +125,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
               UrlAndFileName(url = extraDataFileUrls[index], fileName = extraDataFileNames[index])
             )
           }
-          Log.d(TAG, "About to download: $allFiles")
+          Log.d(TAG, "About to download file set: $allFiles")
 
           // Download them in sequence.
           // TODO: maybe consider downloading them in parallel.
@@ -161,6 +166,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
               )
               connection.setRequestProperty("Range", "bytes=${outputFileBytes}-")
             }
+            Log.d(
+              TAG,
+              "Connecting to ${url} (resumeFrom=${outputFileBytes}) -> tmp='${outputTmpFile.absolutePath}'",
+            )
             connection.connect()
             Log.d(TAG, "response code: ${connection.responseCode}")
 
@@ -258,6 +267,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
 
             // Unzip if the downloaded file is a zip.
             if (isZip && unzippedDir != null) {
+              Log.d(
+                TAG,
+                "Start unzipping to dir '${listOf(modelDir, version, unzippedDir).joinToString(File.separator)}'",
+              )
               setProgress(Data.Builder().putBoolean(KEY_MODEL_START_UNZIPPING, true).build())
 
               // Prepare target dir.
@@ -305,10 +318,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
               // Delete the original file.
               val zipFile = File(zipFilePath)
               zipFile.delete()
+              Log.d(TAG, "Unzip completed, deleted zip '${zipFilePath}'")
             }
           }
           Result.success()
         } catch (e: IOException) {
+          Log.e(TAG, "IOException during download for model='${modelName}': ${e.message}", e)
           Result.failure(
             Data.Builder().putString(KEY_MODEL_DOWNLOAD_ERROR_MESSAGE, e.message).build()
           )

@@ -206,6 +206,10 @@ constructor(
   }
 
   fun downloadModel(task: Task, model: Model) {
+    Log.d(
+      TAG,
+      "downloadModel called for '${model.name}' (url=${model.url}, totalBytes=${model.totalBytes}, isZip=${model.isZip})",
+    )
     // Update status.
     setDownloadStatus(
       curModel = model,
@@ -213,9 +217,11 @@ constructor(
     )
 
     // Delete the model files first.
+    Log.d(TAG, "Deleting any existing files for '${model.name}' before enqueueing download")
     deleteModel(task = task, model = model)
 
     // Start to send download request.
+    Log.d(TAG, "Enqueue WorkManager job for '${model.name}'")
     downloadRepository.downloadModel(
       task = task,
       model = model,
@@ -224,14 +230,18 @@ constructor(
   }
 
   fun cancelDownloadModel(task: Task, model: Model) {
+    Log.d(TAG, "cancelDownloadModel called for '${model.name}'")
     downloadRepository.cancelDownloadModel(model)
     deleteModel(task = task, model = model)
   }
 
   fun deleteModel(task: Task, model: Model) {
+    Log.d(TAG, "deleteModel called for '${model.name}' (imported=${model.imported})")
     if (model.imported) {
+      Log.d(TAG, "Deleting imported model file '${model.downloadFileName}' from external files dir")
       deleteFileFromExternalFilesDir(model.downloadFileName)
     } else {
+      Log.d(TAG, "Deleting model directory '${model.normalizedName}' from external files dir")
       deleteDirFromExternalFilesDir(model.normalizedName)
     }
 
@@ -438,6 +448,10 @@ constructor(
 
   fun getModelUrlResponse(model: Model, accessToken: String? = null): Int {
     try {
+      Log.d(
+        TAG,
+        "getModelUrlResponse for '${model.name}' (url=${model.url}, tokenPresent=${accessToken != null})",
+      )
       val url = URL(model.url)
       val connection = url.openConnection() as HttpURLConnection
       if (accessToken != null) {
@@ -446,9 +460,11 @@ constructor(
       connection.connect()
 
       // Report the result.
-      return connection.responseCode
+      val code = connection.responseCode
+      Log.d(TAG, "getModelUrlResponse: HTTP $code for '${model.name}'")
+      return code
     } catch (e: Exception) {
-      Log.e(TAG, "$e")
+      Log.e(TAG, "getModelUrlResponse error for '${model.name}': $e", e)
       return -1
     }
   }

@@ -22,26 +22,32 @@ import androidx.compose.ui.graphics.Color
 import com.google.ai.edge.gallery.data.Task
 import com.google.ai.edge.gallery.ui.theme.customColors
 
+private fun positiveIndex(index: Int, size: Int): Int {
+  if (size <= 0) return 0
+  val mod = index % size
+  return if (mod >= 0) mod else mod + size
+}
+
 @Composable
 fun getTaskBgColor(task: Task): Color {
-  val colorIndex: Int = task.index % MaterialTheme.customColors.taskBgColors.size
+  val colorIndex: Int = positiveIndex(task.index, MaterialTheme.customColors.taskBgColors.size)
   return MaterialTheme.customColors.taskBgColors[colorIndex]
 }
 
 @Composable
 fun getTaskBgGradientColors(task: Task): List<Color> {
-  val colorIndex: Int = task.index % MaterialTheme.customColors.taskBgColors.size
+  val colorIndex: Int = positiveIndex(task.index, MaterialTheme.customColors.taskBgColors.size)
   return MaterialTheme.customColors.taskBgGradientColors[colorIndex]
 }
 
 @Composable
 fun getTaskIconColor(task: Task): Color {
-  val colorIndex: Int = task.index % MaterialTheme.customColors.taskIconColors.size
+  val colorIndex: Int = positiveIndex(task.index, MaterialTheme.customColors.taskIconColors.size)
   return MaterialTheme.customColors.taskIconColors[colorIndex]
 }
 
 @Composable
 fun getTaskIconColor(index: Int): Color {
-  val colorIndex: Int = index % MaterialTheme.customColors.taskIconColors.size
+  val colorIndex: Int = positiveIndex(index, MaterialTheme.customColors.taskIconColors.size)
   return MaterialTheme.customColors.taskIconColors[colorIndex]
 }

@@ -341,6 +341,7 @@ fun DownloadAndTryButton(
         ),
       contentPadding = PaddingValues(horizontal = 12.dp),
       onClick = {
+        Log.d(TAG, "Download/Try button clicked for model='${model.name}', enabled=$enabled, checkingToken=$checkingToken, needToDownloadFirst=$needToDownloadFirst")
         if (!enabled || checkingToken) {
           return@Button
         }
