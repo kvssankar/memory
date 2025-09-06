@@ -1,4 +1,4 @@
-package com.google.ai.edge.gallery.ui.notes
+﻿package com.google.ai.edge.gallery.ui.notes
 
 import android.content.Context
 import android.util.Log
@@ -128,6 +128,25 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
         withContext(Dispatchers.Main) { onSuccess() }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) { onError(e.message ?: "Failed to update note") }
+      }
+    }
+  }
+
+  fun deleteNote(
+    noteId: Long,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit,
+  ) {
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        val affected = repo.delete(noteId)
+        _editingNote.value = null
+        _notes.value = repo.all()
+        withContext(Dispatchers.Main) {
+          if (affected > 0) onSuccess() else onError("Note not found")
+        }
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) { onError(e.message ?: "Failed to delete note") }
       }
     }
   }

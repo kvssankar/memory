@@ -1,4 +1,4 @@
-package com.google.ai.edge.gallery.data.notes
+﻿package com.google.ai.edge.gallery.data.notes
 
 import android.content.ContentValues
 import android.content.Context
@@ -143,4 +143,9 @@ class NotesRepository(private val db: NotesDatabaseHelper) {
   fun all(): List<Note> = db.listAll()
   fun getById(id: Long): Note? = db.getById(id)
   fun update(note: Note): Int = db.update(note)
+  fun delete(id: Long): Int = db.writableDatabase.delete(TABLE_NOTES, "id=?", arrayOf(id.toString()))
 }
+
+
+
+

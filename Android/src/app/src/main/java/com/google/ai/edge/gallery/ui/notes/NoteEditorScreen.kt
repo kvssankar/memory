@@ -1,4 +1,4 @@
-package com.google.ai.edge.gallery.ui.notes
+﻿package com.google.ai.edge.gallery.ui.notes
 
 // removed shimmer animation imports
 import androidx.compose.foundation.background
@@ -71,6 +71,7 @@ fun NoteEditorScreen(
   var tags by rememberSaveable(editingNote?.id) { mutableStateOf(editingNote?.tags ?: emptyList()) }
   var showAddTagDialog by remember { mutableStateOf(false) }
   var newTagText by remember { mutableStateOf("") }
+  var showDeleteDialog by remember { mutableStateOf(false) }
 
   // Keep local state in sync when note loads
   LaunchedEffect(editingNote?.id) {
@@ -209,6 +210,32 @@ fun NoteEditorScreen(
       )
     }
 
+
+    // Delete button on bottom-left
+    Surface(
+      color = Color.White,
+      shape = RoundedCornerShape(50),
+      tonalElevation = 4.dp,
+      shadowElevation = 8.dp,
+      modifier = Modifier
+        .align(Alignment.BottomStart)
+        .padding(start = 16.dp, bottom = 24.dp)
+    ) {
+      Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+      ) {
+        Button(
+          onClick = { showDeleteDialog = true },
+          colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError
+          ),
+          shape = RoundedCornerShape(50),
+        ) { Text("Delete") }
+      }
+    }
     // Floating action bar
     Surface(
       color = Color.White,
@@ -216,7 +243,7 @@ fun NoteEditorScreen(
       tonalElevation = 4.dp,
       shadowElevation = 8.dp,
       modifier = Modifier
-        .align(Alignment.BottomCenter)
+        .align(Alignment.BottomEnd)
         .padding(bottom = 24.dp)
     ) {
       Row(
@@ -273,7 +300,32 @@ fun NoteEditorScreen(
         dismissButton = { TextButton(onClick = { showAddTagDialog = false }) { Text("Cancel") } },
       )
     }
-  }
+
+    if (showDeleteDialog) {
+      AlertDialog(
+        onDismissRequest = { showDeleteDialog = false },
+        title = { Text("Delete note?") },
+        text = { Text("This action cannot be undone.") },
+        confirmButton = {
+          Button(
+            onClick = {
+              showDeleteDialog = false
+              vm.deleteNote(
+                noteId = noteId,
+                onSuccess = { onNavigateUp() },
+                onError = { /* TODO: snackbar */ },
+              )
+            },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = MaterialTheme.colorScheme.error,
+              contentColor = MaterialTheme.colorScheme.onError
+            )
+          ) { Text("Delete") }
+        },
+        dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } },
+      )
+    }
+}
 }
 
 @Composable
@@ -312,3 +364,8 @@ private fun AiDescriptionPanel(text: String) {
     // Shimmer removed
   }
 }
+
+
+
+
+
