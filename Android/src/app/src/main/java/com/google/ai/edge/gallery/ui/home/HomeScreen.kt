@@ -160,9 +160,9 @@ fun HomeScreen(
   tosViewModel: TosViewModel,
   navigateToTaskScreen: (Task) -> Unit,
   modifier: Modifier = Modifier,
+  onOpenSettings: () -> Unit = {},
 ) {
   val uiState by modelManagerViewModel.uiState.collectAsState()
-  var showSettingsDialog by remember { mutableStateOf(false) }
   var showImportModelSheet by remember { mutableStateOf(false) }
   var showUnsupportedFileTypeDialog by remember { mutableStateOf(false) }
   val sheetState = rememberModalBottomSheetState()
@@ -334,7 +334,7 @@ fun HomeScreen(
               rightAction =
                 AppBarAction(
                   actionType = AppBarActionType.APP_SETTING,
-                  actionFn = { showSettingsDialog = true },
+                  actionFn = { onOpenSettings() },
                 ),
             )
           }
@@ -421,14 +421,7 @@ fun HomeScreen(
     )
   }
 
-  // Settings dialog.
-  if (showSettingsDialog) {
-    SettingsDialog(
-      curThemeOverride = modelManagerViewModel.readThemeOverride(),
-      modelManagerViewModel = modelManagerViewModel,
-      onDismissed = { showSettingsDialog = false },
-    )
-  }
+  // Settings dialog replaced by full-screen settings page via navigation.
 
   // Import model bottom sheet.
   if (showImportModelSheet) {

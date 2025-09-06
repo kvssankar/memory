@@ -69,6 +69,7 @@ import com.google.ai.edge.gallery.ui.common.ErrorDialog
 import com.google.ai.edge.gallery.ui.common.ModelPageAppBar
 import com.google.ai.edge.gallery.ui.common.chat.ModelDownloadStatusInfoPanel
 import com.google.ai.edge.gallery.ui.home.HomeScreen
+import com.google.ai.edge.gallery.ui.settings.SettingsScreen
 import com.google.ai.edge.gallery.ui.modelmanager.ModelInitializationStatusType
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManager
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
@@ -78,6 +79,7 @@ import kotlinx.coroutines.launch
 private const val TAG = "AGGalleryNavGraph"
 private const val ROUTE_PLACEHOLDER = "placeholder"
 private const val ROUTE_MODEL = "route_model"
+private const val ROUTE_SETTINGS = "route_settings"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -153,6 +155,7 @@ fun GalleryNavHost(
       showModelManager = true
       firebaseAnalytics?.logEvent("capability_select", bundleOf("capability_name" to task.id))
     },
+    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
   )
 
   // Model manager.
@@ -184,6 +187,14 @@ fun GalleryNavHost(
   ) {
     // Placeholder root screen
     composable(route = ROUTE_PLACEHOLDER) { Text("") }
+
+    // Settings screen
+    composable(route = ROUTE_SETTINGS, enterTransition = { slideEnter() }, exitTransition = { slideExit() }) {
+      SettingsScreen(
+        modelManagerViewModel = modelManagerViewModel,
+        onNavigateUp = { navController.navigateUp() },
+      )
+    }
 
     composable(
       route = "$ROUTE_MODEL/{taskId}/{modelName}",
