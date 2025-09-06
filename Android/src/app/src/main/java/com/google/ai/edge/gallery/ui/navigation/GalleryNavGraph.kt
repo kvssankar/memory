@@ -148,7 +148,10 @@ fun GalleryNavHost(
   }
 
   // New home screen: Notes
-  com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(modelManagerViewModel = modelManagerViewModel)
+  com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(
+    modelManagerViewModel = modelManagerViewModel,
+    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+  )
 
   // Model manager.
   AnimatedVisibility(

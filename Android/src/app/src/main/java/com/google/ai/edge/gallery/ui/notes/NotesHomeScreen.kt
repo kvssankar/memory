@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.TextFields
@@ -32,6 +33,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,12 +45,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.ai.edge.gallery.GalleryTopAppBar
-import com.google.ai.edge.gallery.data.AppBarAction
-import com.google.ai.edge.gallery.data.AppBarActionType
+import androidx.compose.material.icons.rounded.Settings
 import com.google.ai.edge.gallery.data.notes.Note
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import kotlinx.coroutines.launch
@@ -56,7 +59,10 @@ import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotesHomeScreen(modelManagerViewModel: ModelManagerViewModel) {
+fun NotesHomeScreen(
+  modelManagerViewModel: ModelManagerViewModel,
+  onOpenSettings: () -> Unit = {},
+) {
   val vm: NotesViewModel = hiltViewModel()
   val notes by vm.notes.collectAsState()
   val isCreating by vm.isCreating.collectAsState()
@@ -70,11 +76,27 @@ fun NotesHomeScreen(modelManagerViewModel: ModelManagerViewModel) {
   LaunchedEffect(Unit) { vm.load() }
 
   Scaffold(
+    containerColor = Color(0xFF121212), // Soft black background
     topBar = {
-      GalleryTopAppBar(
-        title = "Notes",
-        leftAction = AppBarAction(actionType = AppBarActionType.NO_ACTION, actionFn = {}),
-      )
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .statusBarsPadding()
+          .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(
+          text = "My Notes",
+          style = MaterialTheme.typography.headlineMedium,
+          fontWeight = FontWeight.Bold,
+          fontSize = 28.sp,
+          color = Color.White,
+          modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onOpenSettings) {
+          Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Settings", tint = Color.White)
+        }
+      }
     },
     snackbarHost = { SnackbarHost(snackbarHostState) },
     floatingActionButton = {
@@ -155,34 +177,66 @@ private fun NotesList(notes: List<Note>, contentPadding: PaddingValues) {
       Text("No notes yet. Tap + to add one.")
     }
   } else {
+    val cardPalette = listOf(
+      Color(0xFFF9A691),
+      Color(0xFFF9F99C),
+      Color(0xFFCDEEF0),
+      Color(0xFFF6E8B6),
+      Color(0xFFEAF7F4),
+      Color(0xFFF5FDFA),
+    )
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = contentPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      items(notes) { note -> NoteCard(note) }
+      itemsIndexed(notes) { index, note ->
+        val bg = cardPalette[index % cardPalette.size]
+        NoteCard(note = note, backgroundColor = bg)
+      }
     }
   }
 }
 
 @Composable
-private fun NoteCard(note: Note) {
-  Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+private fun NoteCard(note: Note, backgroundColor: Color) {
+  Card(colors = CardDefaults.cardColors(containerColor = backgroundColor)) {
     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-      Text(text = note.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      Text(
+        text = note.title,
+        style = MaterialTheme.typography.titleMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        color = Color.Black,
+      )
       Spacer(modifier = Modifier.height(4.dp))
       if (note.tags.isNotEmpty()) {
-        TagRow(tags = note.tags)
+        TagRow(tags = note.tags, labelColor = Color.Black)
       }
       Spacer(modifier = Modifier.height(6.dp))
-      Text(text = note.aiDescription, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+      Text(
+        text = note.aiDescription,
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+        color = Color.Black,
+      )
     }
   }
 }
 
 @Composable
-private fun TagRow(tags: List<String>) {
+private fun TagRow(tags: List<String>, labelColor: Color) {
   Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     tags.take(6).forEach { tag ->
       val label = tag.trim()
       if (label.isNotEmpty()) {
-        AssistChip(onClick = {}, enabled = false, label = { Text(label) }, colors = AssistChipDefaults.assistChipColors())
+        AssistChip(
+          onClick = {},
+          enabled = false,
+          label = { Text(label, color = labelColor) },
+          colors = AssistChipDefaults.assistChipColors(
+            containerColor = Color.Transparent,
+            labelColor = labelColor,
+            disabledLabelColor = labelColor,
+          ),
+        )
       }
     }
   }
