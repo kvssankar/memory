@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,7 +98,9 @@ fun NoteEditorScreen(
     Column(
       modifier = Modifier
         .fillMaxSize()
-        .padding(horizontal = 16.dp, vertical = 16.dp),
+        .verticalScroll(rememberScrollState())
+        .padding(horizontal = 16.dp, vertical = 16.dp)
+        .padding(bottom = 120.dp), // Increased bottom padding for floating buttons
     ) {
       // Title on main screen (black)
       if (isEditingTitle) {
@@ -224,20 +228,22 @@ fun NoteEditorScreen(
     }
 
 
-    // Delete button on bottom-left
+    // Single floating action bar
     Surface(
       color = Color.White,
       shape = RoundedCornerShape(50),
       tonalElevation = 4.dp,
       shadowElevation = 8.dp,
       modifier = Modifier
-        .align(Alignment.BottomStart)
-        .padding(start = 16.dp, bottom = 24.dp)
+        .align(Alignment.BottomCenter)
+        .padding(bottom = 24.dp)
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp)
     ) {
       Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
       ) {
         Button(
           onClick = { showDeleteDialog = true },
@@ -247,46 +253,32 @@ fun NoteEditorScreen(
           ),
           shape = RoundedCornerShape(50),
         ) { Text("Delete") }
-      }
-    }
-    // Floating action bar
-    Surface(
-      color = Color.White,
-      shape = RoundedCornerShape(50),
-      tonalElevation = 4.dp,
-      shadowElevation = 8.dp,
-      modifier = Modifier
-        .align(Alignment.BottomEnd)
-        .padding(bottom = 24.dp)
-    ) {
-      Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-      ) {
-        Button(
-          onClick = { onNavigateUp() },
-          colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = Color.Black
-          ),
-          shape = RoundedCornerShape(50),
-        ) { Text("Cancel") }
-        Button(
-          onClick = {
-            val cleanTags = tags.map { it.trim() }.filter { it.isNotEmpty() }
-            vm.updateNote(
-              noteId = noteId,
-              newTitle = title.trim().ifBlank { "Untitled" },
-              newDescription = desc.trim(),
-              newTags = cleanTags,
-              onSuccess = { onNavigateUp() },
-              onError = { /* TODO: snackbar */ },
-            )
-          },
-          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-          shape = RoundedCornerShape(50),
-        ) { Text("Update") }
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          Button(
+            onClick = { onNavigateUp() },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = MaterialTheme.colorScheme.surfaceVariant,
+              contentColor = Color.Black
+            ),
+            shape = RoundedCornerShape(50),
+          ) { Text("Cancel") }
+          Button(
+            onClick = {
+              val cleanTags = tags.map { it.trim() }.filter { it.isNotEmpty() }
+              vm.updateNote(
+                noteId = noteId,
+                newTitle = title.trim().ifBlank { "Untitled" },
+                newDescription = desc.trim(),
+                newTags = cleanTags,
+                onSuccess = { onNavigateUp() },
+                onError = { /* TODO: snackbar */ },
+              )
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            shape = RoundedCornerShape(50),
+          ) { Text("Update") }
+        }
       }
     }
 
