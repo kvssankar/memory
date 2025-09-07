@@ -52,7 +52,6 @@ fun NotesChatScreen(
     onSendMessage = { model, messages ->
       // We only consider the last text message as the user query
       val text = messages.lastOrNull { it is ChatMessageText }?.let { (it as ChatMessageText).content } ?: ""
-      messages.forEach { msg -> viewModel.addMessage(model = model, message = msg) }
       if (text.isNotBlank()) {
         modelManagerViewModel.addTextInputHistory(text)
         viewModel.chatWithNotes(model = model, userText = text)

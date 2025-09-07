@@ -108,17 +108,23 @@ class NotesChatViewModel @Inject constructor(
 
                 val json = rowsToJson(rows)
                 val answerPrompt = """
-                  You are answering a user using the results from an SQLite query on their notes.
-                  - Be concise and helpful.
-                  - If appropriate, reference note titles.
-                  - If nothing matches, explain briefly and suggest different phrasing.
-
+                  You are a notes assistant answering questions about the user's personal notes.
+                  
                   User question: $userText
                   SQL used: ```sql\n$sql\n```
                   Results (JSON array of rows):
                   ```json
                   $json
                   ```
+
+                  Rules:
+                  - If results exist, answer based on the notes found. Reference note titles when helpful.
+                  - If no results found:
+                    * For conversational queries (greetings, thanks, etc.), respond naturally
+                    * For notes-related queries, say you couldn't find matching notes and suggest different phrasing
+                    * For unrelated queries (general knowledge, facts), politely decline: "I can only help with questions about your notes."
+                  - Be concise and helpful.
+                  - Only answer about the user's notes, not general knowledge.
 
                   Provide the final answer for the user.
                 """.trimIndent()
