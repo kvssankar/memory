@@ -33,6 +33,8 @@ import com.google.ai.edge.gallery.proto.Settings
 import com.google.ai.edge.gallery.proto.UserData
 import com.google.ai.edge.gallery.data.notes.NotesDatabaseHelper
 import com.google.ai.edge.gallery.data.notes.NotesRepository
+import com.google.ai.edge.gallery.data.spends.TransactionDatabaseHelper
+import com.google.ai.edge.gallery.data.spends.TransactionRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -116,5 +118,12 @@ internal object AppModule {
   @Singleton
   fun provideNotesRepository(@ApplicationContext context: Context): NotesRepository {
     return NotesRepository(NotesDatabaseHelper(context))
+  }
+
+  // Provides local Transactions repository (SQLite)
+  @Provides
+  @Singleton
+  fun provideTransactionRepository(@ApplicationContext context: Context): TransactionRepository {
+    return TransactionRepository(TransactionDatabaseHelper(context))
   }
 }

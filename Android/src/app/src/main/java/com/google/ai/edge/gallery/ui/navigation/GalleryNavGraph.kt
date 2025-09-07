@@ -185,6 +185,7 @@ fun GalleryNavHost(
           com.google.ai.edge.gallery.ui.spends.SpendsScreen(
             onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
             onOpenSpendChat = { navController.navigate(ROUTE_SPENDS_CHAT) },
+            modelManagerViewModel = modelManagerViewModel
           )
         }
       }
