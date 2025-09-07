@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Chat
 import com.google.ai.edge.gallery.data.notes.Note
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ fun NotesHomeScreen(
   modelManagerViewModel: ModelManagerViewModel,
   onOpenSettings: () -> Unit = {},
   onOpenNote: (Long) -> Unit = {},
+  onOpenChat: () -> Unit = {},
   refreshKey: Int = 0,
 ) {
   val vm: NotesViewModel = hiltViewModel()
@@ -97,6 +99,9 @@ fun NotesHomeScreen(
           color = Color.Black,
           modifier = Modifier.weight(1f)
         )
+        IconButton(onClick = onOpenChat) {
+          Icon(imageVector = Icons.Rounded.Chat, contentDescription = "Chat with Notes", tint = Color.Black)
+        }
         IconButton(onClick = onOpenSettings) {
           Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Settings", tint = Color.Black)
         }

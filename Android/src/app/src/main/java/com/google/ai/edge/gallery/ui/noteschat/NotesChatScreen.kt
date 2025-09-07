@@ -2,6 +2,9 @@ package com.google.ai.edge.gallery.ui.noteschat
 
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.os.bundleOf
@@ -21,6 +24,26 @@ fun NotesChatScreen(
 ) {
   val context = LocalContext.current
   val task = modelManagerViewModel.getTaskById(id = BuiltInTaskId.LLM_CHAT)!!
+  val uiState by modelManagerViewModel.uiState.collectAsState()
+
+  // Auto-select gemma-3n-e2b-it model by default for notes chat
+  LaunchedEffect(task.models) {
+    val preferredModelName = "gemma-3n-e2b-it"
+    val selectedModel = uiState.selectedModel
+    
+    // Try to find gemma-3n-e2b-it first, then any gemma model, then first available
+    val targetModel = task.models.find { it.name.contains(preferredModelName, ignoreCase = true) }
+      ?: task.models.find { it.name.contains("gemma", ignoreCase = true) }
+      ?: task.models.firstOrNull()
+    
+    if (targetModel != null && selectedModel.name != targetModel.name) {
+      modelManagerViewModel.selectModel(targetModel)
+      // Set GPU as default with CPU fallback by ensuring accelerator config is set to GPU
+      targetModel.configValues = targetModel.configValues.toMutableMap().apply {
+        put("Choose accelerator", "GPU")
+      }
+    }
+  }
 
   ChatView(
     task = task,

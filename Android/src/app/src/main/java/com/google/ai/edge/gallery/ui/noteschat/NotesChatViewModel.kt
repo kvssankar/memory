@@ -43,21 +43,26 @@ class NotesChatViewModel @Inject constructor(
           Table: notes
           Columns:
             - id INTEGER PRIMARY KEY
-            - type TEXT
-            - title TEXT
-            - tags TEXT (comma-separated tags)
-            - description TEXT
-            - ai_description TEXT
-            - image_path TEXT (nullable)
+            - type TEXT (values: 'text' or 'image' - the note type)
+            - title TEXT (note title)
+            - tags TEXT (comma-separated tags like 'work,personal,reminder')
+            - description TEXT (user's original note content)
+            - ai_description TEXT (AI-generated description of the note)
+            - image_path TEXT (nullable, path to image file)
             - created_at INTEGER (epoch millis)
             - updated_at INTEGER (epoch millis)
 
-          Constraints:
+          Important rules:
           - Output ONLY the SQL in a fenced code block like ```sql ... ``` with no extra commentary.
           - Use SELECT queries only. Do NOT modify data.
-          - Prefer LIMIT 50 when returning lists.
-          - For time ordering prefer ORDER BY updated_at DESC.
-          - For tags, they are comma-separated; use LIKE patterns to match tags, e.g., tags LIKE '%tag%'.
+          - Always specify column names explicitly (SELECT id, title, description, ... FROM notes)
+          - For content searches, look in title, description, ai_description, and tags columns
+          - For tags, use LIKE patterns: tags LIKE '%reminder%'
+          - For time ordering use ORDER BY updated_at DESC
+          - Add LIMIT 50 for large result sets
+          - The 'type' column only contains 'text' or 'image', not content keywords
+
+          Example: For "reminders", search in title/description/tags, not type column.
         """.trimIndent()
 
         val sqlPrompt = "$schemaDesc\n\nUser question: $userText\n\nGenerate the SQL now."

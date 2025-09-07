@@ -81,6 +81,7 @@ private const val ROUTE_PLACEHOLDER = "placeholder"
 private const val ROUTE_MODEL = "route_model"
 private const val ROUTE_SETTINGS = "route_settings"
 private const val ROUTE_NOTE = "route_note"
+private const val ROUTE_NOTES_CHAT = "route_notes_chat"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -156,6 +157,7 @@ fun GalleryNavHost(
     modelManagerViewModel = modelManagerViewModel,
     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
     onOpenNote = { id -> navController.navigate("$ROUTE_NOTE/$id") },
+    onOpenChat = { navController.navigate(ROUTE_NOTES_CHAT) },
     refreshKey = refreshNotesKey,
   )
 
@@ -212,6 +214,18 @@ fun GalleryNavHost(
           refreshNotesKey++
           navController.navigateUp()
         },
+      )
+    }
+
+    // Notes chat screen
+    composable(
+      route = ROUTE_NOTES_CHAT,
+      enterTransition = { slideEnter() },
+      exitTransition = { slideExit() },
+    ) {
+      com.google.ai.edge.gallery.ui.noteschat.NotesChatScreen(
+        modelManagerViewModel = modelManagerViewModel,
+        navigateUp = { navController.navigateUp() },
       )
     }
 
