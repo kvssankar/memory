@@ -130,7 +130,7 @@ fun NotesHomeScreen(
   LaunchedEffect(refreshKey) { vm.load() }
 
   Scaffold(
-    containerColor = Color.White, // Light background
+    containerColor = Color.White,
     topBar = {
       Row(
         modifier = Modifier

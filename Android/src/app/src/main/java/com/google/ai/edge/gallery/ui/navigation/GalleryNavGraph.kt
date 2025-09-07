@@ -59,6 +59,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.google.ai.edge.gallery.ui.common.BottomNavigationBar
+import com.google.ai.edge.gallery.ui.common.BottomNavTab
 import com.google.ai.edge.gallery.customtasks.common.CustomTaskData
 import com.google.ai.edge.gallery.customtasks.common.CustomTaskDataForBuiltinTask
 import com.google.ai.edge.gallery.data.ModelDownloadStatusType
@@ -82,6 +84,8 @@ private const val ROUTE_MODEL = "route_model"
 private const val ROUTE_SETTINGS = "route_settings"
 private const val ROUTE_NOTE = "route_note"
 private const val ROUTE_NOTES_CHAT = "route_notes_chat"
+private const val ROUTE_SPENDS = "route_spends"
+private const val ROUTE_SPENDS_CHAT = "route_spends_chat"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -152,14 +156,40 @@ fun GalleryNavHost(
   // Refresh key to reload notes list when returning from editor
   var refreshNotesKey by remember { mutableStateOf(0) }
 
-  // New home screen: Notes
-  com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(
-    modelManagerViewModel = modelManagerViewModel,
-    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-    onOpenNote = { id -> navController.navigate("$ROUTE_NOTE/$id") },
-    onOpenChat = { navController.navigate(ROUTE_NOTES_CHAT) },
-    refreshKey = refreshNotesKey,
-  )
+  // Bottom navigation state
+  var currentTab by remember { mutableStateOf(BottomNavTab.NOTES) }
+
+  // Main content with bottom navigation
+  Scaffold(
+    bottomBar = {
+      BottomNavigationBar(
+        currentTab = currentTab,
+        onTabSelected = { tab ->
+          currentTab = tab
+        }
+      )
+    }
+  ) { innerPadding ->
+    Box(modifier = Modifier.padding(innerPadding)) {
+      when (currentTab) {
+        BottomNavTab.NOTES -> {
+          com.google.ai.edge.gallery.ui.notes.NotesHomeScreen(
+            modelManagerViewModel = modelManagerViewModel,
+            onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+            onOpenNote = { id -> navController.navigate("$ROUTE_NOTE/$id") },
+            onOpenChat = { navController.navigate(ROUTE_NOTES_CHAT) },
+            refreshKey = refreshNotesKey,
+          )
+        }
+        BottomNavTab.SPENDS -> {
+          com.google.ai.edge.gallery.ui.spends.SpendsScreen(
+            onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+            onOpenSpendChat = { navController.navigate(ROUTE_SPENDS_CHAT) },
+          )
+        }
+      }
+    }
+  }
 
   // Model manager.
   AnimatedVisibility(
@@ -223,6 +253,19 @@ fun GalleryNavHost(
       enterTransition = { slideEnter() },
       exitTransition = { slideExit() },
     ) {
+      com.google.ai.edge.gallery.ui.noteschat.NotesChatScreen(
+        modelManagerViewModel = modelManagerViewModel,
+        navigateUp = { navController.navigateUp() },
+      )
+    }
+
+    // Spends chat screen (placeholder)
+    composable(
+      route = ROUTE_SPENDS_CHAT,
+      enterTransition = { slideEnter() },
+      exitTransition = { slideExit() },
+    ) {
+      // Placeholder for spends chat - you can implement this later
       com.google.ai.edge.gallery.ui.noteschat.NotesChatScreen(
         modelManagerViewModel = modelManagerViewModel,
         navigateUp = { navController.navigateUp() },
