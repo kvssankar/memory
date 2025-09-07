@@ -144,6 +144,30 @@ class NotesRepository(private val db: NotesDatabaseHelper) {
   fun getById(id: Long): Note? = db.getById(id)
   fun update(note: Note): Int = db.update(note)
   fun delete(id: Long): Int = db.writableDatabase.delete(TABLE_NOTES, "id=?", arrayOf(id.toString()))
+  
+  fun runSelect(sql: String): List<Map<String, Any?>> {
+    val results = mutableListOf<Map<String, Any?>>()
+    val cursor = db.readableDatabase.rawQuery(sql, null)
+    cursor.use { c ->
+      while (c.moveToNext()) {
+        val row = mutableMapOf<String, Any?>()
+        for (i in 0 until c.columnCount) {
+          val columnName = c.getColumnName(i)
+          val value = when (c.getType(i)) {
+            Cursor.FIELD_TYPE_NULL -> null
+            Cursor.FIELD_TYPE_INTEGER -> c.getLong(i)
+            Cursor.FIELD_TYPE_FLOAT -> c.getDouble(i)
+            Cursor.FIELD_TYPE_STRING -> c.getString(i)
+            Cursor.FIELD_TYPE_BLOB -> c.getBlob(i)
+            else -> c.getString(i)
+          }
+          row[columnName] = value
+        }
+        results.add(row)
+      }
+    }
+    return results
+  }
 }
 
 
