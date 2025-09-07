@@ -70,7 +70,11 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
             return@launch
           }
 
-        ensureModelInitialized(context, modelManagerViewModel, task, model)
+        val initSuccess = ensureModelInitializedAsync(context, modelManagerViewModel, task, model)
+        if (!initSuccess) {
+          withContext(Dispatchers.Main) { onError("Failed to initialize AI model") }
+          return@launch
+        }
 
         val prompt = buildPrompt(userDescription)
         val result = runLlm(prompt, model)
@@ -137,11 +141,38 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
             return@launch
           }
 
-        ensureModelInitialized(context, modelManagerViewModel, task, model)
+        // Ensure GPU is selected by default
+        model.configValues = model.configValues.toMutableMap().apply {
+          put("Choose accelerator", "GPU")
+        }
+        
+        val initSuccess = ensureModelInitializedAsync(context, modelManagerViewModel, task, model)
+        if (!initSuccess) {
+          withContext(Dispatchers.Main) { onError("Failed to initialize AI model") }
+          return@launch
+        }
 
-        val imagePrompt = buildImagePrompt(userCaption, imagePath)
-        val result = runLlm(imagePrompt, model)
-        val parsed = parseResultOrFallback(result, userCaption.ifEmpty { "Image note" })
+        val imagePrompt = buildImagePrompt(userCaption)
+        val result = try {
+          runLlmWithImage(imagePrompt, model, bitmap)
+        } catch (e: Exception) {
+          Log.e(TAG, "AI processing failed, using fallback", e)
+          // Create fallback response if AI fails
+          ""
+        }
+        
+        val parsed = if (result.isNotEmpty()) {
+          parseResultOrFallback(result, userCaption.ifEmpty { "Image note" })
+        } else {
+          // Fallback metadata if AI processing completely failed
+          Parsed(
+            title = if (userCaption.isNotEmpty()) userCaption.take(32) else "Image Note",
+            tags = listOf("image"),
+            aiDescription = if (userCaption.isNotEmpty()) "Image with caption: $userCaption" else "Image note",
+            createdAt = now,
+            updatedAt = now
+          )
+        }
 
         val note =
           Note(
@@ -236,23 +267,26 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
     }
   }
 
-  private fun buildImagePrompt(caption: String, imagePath: String): String {
-    val basePrompt = "You are an assistant creating metadata for an image note."
-    val captionText = if (caption.isNotEmpty()) "User caption: \"$caption\"" else "No user caption provided."
-    return "$basePrompt\n$captionText\nImage saved at: $imagePath\n" +
-      "Generate a compact JSON object only (no extra text) " +
-      "with keys: title (<=8 words describing the image), tags (array of 1-5 lowercase tags), " +
-      "ai_description (1-2 sentences describing the image), " +
-      "created_at (unix ms), updated_at (unix ms).\n" +
+  private fun buildImagePrompt(caption: String): String {
+    val basePrompt = "You are an assistant creating metadata for an image note. Analyze the provided image."
+    val captionText = if (caption.isNotEmpty()) "Caption: \"$caption\"" else "No caption provided."
+    return "$basePrompt\n$captionText\n" +
+      "Generate a compact JSON object only (no extra text) with keys:\n" +
+      "- title (<=8 words describing the image content)\n" +
+      "- tags (array of 1-5 lowercase tags for searching)\n" +
+      "- ai_description (2-3 sentences describing what's visible in the image, including any text, objects, people, scenes, colors, and relevant details. Include caption context if provided. Write objectively without mentioning 'user' or personal references)\n" +
+      "- created_at (unix ms), updated_at (unix ms)\n" +
       "Output JSON only."
   }
 
   private fun buildPrompt(description: String): String {
     return (
       "You are an assistant creating metadata for a short note.\n" +
-        "Given the user's short description, generate a compact JSON object only (no extra text) " +
-        "with keys: title (<=8 words), tags (array of 1-5 lowercase tags), ai_description (1-2 sentences), " +
-        "created_at (unix ms), updated_at (unix ms).\n" +
+        "Generate a compact JSON object only (no extra text) with keys:\n" +
+        "- title (<=8 words summarizing the note content)\n" +
+        "- tags (array of 1-5 lowercase tags for searching)\n" +
+        "- ai_description (2-3 sentences describing the note content, including key details, context, and relevant information. Write objectively without mentioning 'user' or personal references. Focus on what the note contains)\n" +
+        "- created_at (unix ms), updated_at (unix ms)\n" +
         "Description: \"" + description.replace("\"", "'") + "\"\n" +
         "Output JSON only."
     )
@@ -312,12 +346,36 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
     return sb.toString()
   }
 
+  private suspend fun runLlmWithImage(prompt: String, model: Model, bitmap: Bitmap): String {
+    val sb = StringBuilder()
+    val done = CompletableDeferred<Unit>()
+    withTimeout(60_000) { // Increased timeout for image processing
+      LlmChatModelHelper.runInference(
+        model = model,
+        input = prompt,
+        images = listOf(bitmap),
+        resultListener = { partial, isDone ->
+          sb.append(partial)
+          if (isDone && !done.isCompleted) done.complete(Unit)
+        },
+        cleanUpListener = {},
+      )
+      done.await()
+    }
+    return sb.toString()
+  }
+
   private fun pickAvailableLlmModel(
     modelManagerViewModel: ModelManagerViewModel
   ): Pair<Model, Task>? {
     val ui = modelManagerViewModel.uiState.value
     val tasks = ui.tasks
-    val llmTasks = tasks.filter { it.id == BuiltInTaskId.LLM_CHAT || it.id == BuiltInTaskId.LLM_PROMPT_LAB }
+    // For image notes, prioritize LLM_ASK_IMAGE task which supports vision
+    val llmTasks = tasks.filter { 
+      it.id == BuiltInTaskId.LLM_ASK_IMAGE || 
+      it.id == BuiltInTaskId.LLM_CHAT || 
+      it.id == BuiltInTaskId.LLM_PROMPT_LAB 
+    }
     for (task in llmTasks) {
       for (model in task.models) {
         val status = ui.modelDownloadStatus[model.name]?.status
@@ -329,26 +387,54 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
     return null
   }
 
-  private fun ensureModelInitialized(
+  private suspend fun ensureModelInitializedAsync(
     context: Context,
     modelManagerViewModel: ModelManagerViewModel,
     task: Task,
     model: Model,
-  ) {
+  ): Boolean {
     val ui = modelManagerViewModel.uiState.value
     modelManagerViewModel.selectModel(model)
     val state = ui.modelInitializationStatus[model.name]
-    if (state == null || state.status != com.google.ai.edge.gallery.ui.modelmanager.ModelInitializationStatusType.INITIALIZED) {
-      modelManagerViewModel.initializeModel(context, task, model)
-      // Busy-wait until the instance exists; then small settle delay like chat flow
-      var tries = 0
-      while (tries < 1000 && model.instance == null) { // up to ~10s
-        Thread.sleep(10)
-        tries++
+    
+    if (state != null && state.status == com.google.ai.edge.gallery.ui.modelmanager.ModelInitializationStatusType.INITIALIZED) {
+      return true // Already initialized
+    }
+
+    return try {
+      // For image processing, we need to initialize with image support enabled
+      val supportImage = task.id == BuiltInTaskId.LLM_ASK_IMAGE
+      
+      val initComplete = CompletableDeferred<Boolean>()
+      
+      if (supportImage) {
+        // Initialize directly with image support like the ask image feature
+        LlmChatModelHelper.initialize(
+          context = context,
+          model = model,
+          supportImage = true,
+          supportAudio = false,
+          onDone = { error ->
+            if (error.isNotEmpty()) {
+              Log.e(TAG, "Failed to initialize model with image support: $error")
+              initComplete.complete(false)
+            } else {
+              initComplete.complete(true)
+            }
+          }
+        )
+      } else {
+        modelManagerViewModel.initializeModel(context, task, model)
+        initComplete.complete(true)
       }
-      if (model.instance != null) {
-        try { Thread.sleep(500) } catch (_: InterruptedException) {}
+      
+      // Wait for initialization with timeout
+      withTimeout(15_000) { // 15 seconds timeout
+        initComplete.await()
       }
+    } catch (e: Exception) {
+      Log.e(TAG, "Model initialization failed", e)
+      false
     }
   }
 
