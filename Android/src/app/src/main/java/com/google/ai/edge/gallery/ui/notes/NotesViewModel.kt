@@ -2,6 +2,9 @@
 
 import android.content.Context
 import android.util.Log
+import android.graphics.Bitmap
+import java.io.File
+import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.edge.gallery.data.BuiltInTaskId
@@ -95,6 +98,74 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
     }
   }
 
+  fun createImageNote(
+    context: Context,
+    modelManagerViewModel: ModelManagerViewModel,
+    bitmap: Bitmap,
+    userCaption: String,
+    onError: (String) -> Unit,
+    onSuccess: () -> Unit,
+  ) {
+    viewModelScope.launch(Dispatchers.Default) {
+      try {
+        _isCreating.value = true
+        val now = System.currentTimeMillis()
+        
+        // Save bitmap to local storage
+        val imagePath = saveImageToLocal(context, bitmap, now)
+        if (imagePath == null) {
+          withContext(Dispatchers.Main) { onError("Failed to save image") }
+          return@launch
+        }
+
+        val (model, task) = pickAvailableLlmModel(modelManagerViewModel)
+          ?: run {
+            // Fallback: simple metadata without LLM if no model available
+            val fallback = Note(
+              type = "image",
+              title = if (userCaption.isNotEmpty()) userCaption.take(32) else "Image Note",
+              tags = listOf("image"),
+              description = userCaption.ifEmpty { "Image note" },
+              aiDescription = userCaption.ifEmpty { "An image note" },
+              imagePath = imagePath,
+              createdAt = now,
+              updatedAt = now,
+            )
+            repo.add(fallback)
+            load()
+            withContext(Dispatchers.Main) { onSuccess() }
+            return@launch
+          }
+
+        ensureModelInitialized(context, modelManagerViewModel, task, model)
+
+        val imagePrompt = buildImagePrompt(userCaption, imagePath)
+        val result = runLlm(imagePrompt, model)
+        val parsed = parseResultOrFallback(result, userCaption.ifEmpty { "Image note" })
+
+        val note =
+          Note(
+            type = "image",
+            title = parsed.title,
+            tags = parsed.tags,
+            description = userCaption.ifEmpty { "Image note" },
+            aiDescription = parsed.aiDescription,
+            imagePath = imagePath,
+            createdAt = parsed.createdAt,
+            updatedAt = parsed.updatedAt,
+          )
+        repo.add(note)
+        load()
+        withContext(Dispatchers.Main) { onSuccess() }
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to create image note", e)
+        withContext(Dispatchers.Main) { onError(e.message ?: "Failed to create image note") }
+      } finally {
+        _isCreating.value = false
+      }
+    }
+  }
+
   fun loadNote(id: Long) {
     viewModelScope.launch(Dispatchers.IO) { _editingNote.value = repo.getById(id) }
   }
@@ -149,6 +220,31 @@ class NotesViewModel @Inject constructor(private val repo: NotesRepository) : Vi
         withContext(Dispatchers.Main) { onError(e.message ?: "Failed to delete note") }
       }
     }
+  }
+
+  private fun saveImageToLocal(context: Context, bitmap: Bitmap, timestamp: Long): String? {
+    return try {
+      val fileName = "note_image_${timestamp}.jpg"
+      val file = File(context.filesDir, fileName)
+      FileOutputStream(file).use { out ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+      }
+      file.absolutePath
+    } catch (e: Exception) {
+      Log.e(TAG, "Failed to save image", e)
+      null
+    }
+  }
+
+  private fun buildImagePrompt(caption: String, imagePath: String): String {
+    val basePrompt = "You are an assistant creating metadata for an image note."
+    val captionText = if (caption.isNotEmpty()) "User caption: \"$caption\"" else "No user caption provided."
+    return "$basePrompt\n$captionText\nImage saved at: $imagePath\n" +
+      "Generate a compact JSON object only (no extra text) " +
+      "with keys: title (<=8 words describing the image), tags (array of 1-5 lowercase tags), " +
+      "ai_description (1-2 sentences describing the image), " +
+      "created_at (unix ms), updated_at (unix ms).\n" +
+      "Output JSON only."
   }
 
   private fun buildPrompt(description: String): String {

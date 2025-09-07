@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.clickable
@@ -17,6 +18,17 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.TextFields
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.core.content.ContextCompat
+import com.google.ai.edge.gallery.ui.common.createTempPictureUri
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,6 +67,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import com.google.ai.edge.gallery.data.notes.Note
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import kotlinx.coroutines.launch
@@ -76,8 +94,38 @@ fun NotesHomeScreen(
   val scope = rememberCoroutineScope()
 
   var showCreateDialog by remember { mutableStateOf(false) }
+  var showImageCaptureDialog by remember { mutableStateOf(false) }
   var descriptionInput by remember { mutableStateOf("") }
+  var captionInput by remember { mutableStateOf("") }
+  var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+  var tempPhotoUri by remember { mutableStateOf(value = Uri.EMPTY) }
   val context = LocalContext.current
+
+  // Image capture launchers
+  val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { isImageSaved ->
+    if (isImageSaved) {
+      handleImageCaptured(context, tempPhotoUri) { bitmap ->
+        capturedBitmap = bitmap
+        showImageCaptureDialog = true
+      }
+    }
+  }
+
+  val takePicturePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permissionGranted ->
+    if (permissionGranted) {
+      tempPhotoUri = context.createTempPictureUri()
+      cameraLauncher.launch(tempPhotoUri)
+    }
+  }
+
+  val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    if (uri != null) {
+      handleImageCaptured(context, uri) { bitmap ->
+        capturedBitmap = bitmap
+        showImageCaptureDialog = true
+      }
+    }
+  }
 
   LaunchedEffect(refreshKey) { vm.load() }
 
@@ -113,7 +161,18 @@ fun NotesHomeScreen(
         FloatingActionButton(onClick = { showCreateDialog = true }) {
           Icon(Icons.Outlined.TextFields, contentDescription = "Add text note")
         }
-        FloatingActionButton(onClick = { /* TODO: image note flow */ }) {
+        FloatingActionButton(onClick = { 
+          // Check camera permission and launch camera
+          when (PackageManager.PERMISSION_GRANTED) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
+              tempPhotoUri = context.createTempPictureUri()
+              cameraLauncher.launch(tempPhotoUri)
+            }
+            else -> {
+              takePicturePermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+          }
+        }) {
           Icon(Icons.Outlined.Image, contentDescription = "Add image note")
         }
       }
@@ -180,6 +239,36 @@ fun NotesHomeScreen(
       },
       confirmButton = {},
       dismissButton = {},
+    )
+  }
+
+  if (showImageCaptureDialog && capturedBitmap != null) {
+    ImageCaptureDialog(
+      bitmap = capturedBitmap!!,
+      caption = captionInput,
+      onCaptionChange = { captionInput = it },
+      onConfirm = {
+        showImageCaptureDialog = false
+        vm.createImageNote(
+          context = context,
+          modelManagerViewModel = modelManagerViewModel,
+          bitmap = capturedBitmap!!,
+          userCaption = captionInput.trim(),
+          onError = { err ->
+            Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+          },
+          onSuccess = {
+            Toast.makeText(context, "Image note created", Toast.LENGTH_SHORT).show()
+          },
+        )
+        capturedBitmap = null
+        captionInput = ""
+      },
+      onCancel = {
+        showImageCaptureDialog = false
+        capturedBitmap = null
+        captionInput = ""
+      }
     )
   }
 }
@@ -257,6 +346,12 @@ private fun NoteCard(note: Note, backgroundColor: Color, onClick: () -> Unit) {
         overflow = TextOverflow.Ellipsis,
         color = Color.Black,
       )
+      
+      // Show image if this is an image note
+      if (note.type == "image" && !note.imagePath.isNullOrEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        NoteImage(imagePath = note.imagePath, modifier = Modifier.fillMaxWidth())
+      }
     }
   }
 }
@@ -279,5 +374,100 @@ private fun TagRow(tags: List<String>, labelColor: Color) {
         )
       }
     }
+  }
+}
+
+@Composable
+private fun NoteImage(
+  imagePath: String,
+  modifier: Modifier = Modifier,
+  maxHeight: androidx.compose.ui.unit.Dp = 150.dp
+) {
+  val bitmap = remember(imagePath) {
+    try {
+      BitmapFactory.decodeFile(imagePath)
+    } catch (e: Exception) {
+      null
+    }
+  }
+  
+  bitmap?.let {
+    Image(
+      bitmap = it.asImageBitmap(),
+      contentDescription = "Note image",
+      modifier = modifier
+        .heightIn(max = maxHeight)
+        .clip(RoundedCornerShape(8.dp)),
+      contentScale = ContentScale.Crop
+    )
+  }
+}
+
+@Composable
+private fun ImageCaptureDialog(
+  bitmap: Bitmap,
+  caption: String,
+  onCaptionChange: (String) -> Unit,
+  onConfirm: () -> Unit,
+  onCancel: () -> Unit
+) {
+  AlertDialog(
+    onDismissRequest = onCancel,
+    title = { Text("New Image Note") },
+    text = {
+      Column(modifier = Modifier.fillMaxWidth()) {
+        // Show captured image
+        androidx.compose.foundation.Image(
+          bitmap = bitmap.asImageBitmap(),
+          contentDescription = "Captured image",
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+          contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Add an optional caption")
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+          value = caption,
+          onValueChange = onCaptionChange,
+          placeholder = { Text("Optional caption...") },
+          singleLine = false,
+          maxLines = 3,
+          modifier = Modifier.fillMaxWidth()
+        )
+      }
+    },
+    confirmButton = {
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(onClick = onCancel) { Text("Cancel") }
+        Button(onClick = onConfirm) { Text("Create Note") }
+      }
+    },
+    dismissButton = {}
+  )
+}
+
+private fun handleImageCaptured(
+  context: Context,
+  uri: Uri,
+  onSuccess: (Bitmap) -> Unit
+) {
+  try {
+    val inputStream = context.contentResolver.openInputStream(uri)
+    val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+    if (bitmap != null) {
+      // Rotate if needed for portrait orientation
+      val finalBitmap = if (bitmap.width > bitmap.height) {
+        val matrix = android.graphics.Matrix()
+        matrix.postRotate(90f)
+        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+      } else {
+        bitmap
+      }
+      onSuccess(finalBitmap)
+    }
+  } catch (e: Exception) {
+    e.printStackTrace()
   }
 }

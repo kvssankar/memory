@@ -49,6 +49,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -136,6 +141,14 @@ fun NoteEditorScreen(
       }
 
       Spacer(modifier = Modifier.height(12.dp))
+
+      // Show image if this is an image note
+      editingNote?.let { note ->
+        if (note.type == "image" && !note.imagePath.isNullOrEmpty()) {
+          NoteEditorImage(imagePath = note.imagePath)
+          Spacer(modifier = Modifier.height(12.dp))
+        }
+      }
 
       // (AI Description moved below the Tags section)
 
@@ -362,6 +375,44 @@ private fun AiDescriptionPanel(text: String) {
     }
 
     // Shimmer removed
+  }
+}
+
+@Composable
+private fun NoteEditorImage(imagePath: String) {
+  val bitmap = remember(imagePath) {
+    try {
+      BitmapFactory.decodeFile(imagePath)
+    } catch (e: Exception) {
+      null
+    }
+  }
+  
+  bitmap?.let {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .background(Color.White, shape = RoundedCornerShape(10.dp))
+        .padding(16.dp)
+    ) {
+      Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+          text = "Image",
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Bold,
+          color = Color.Black,
+          modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Image(
+          bitmap = it.asImageBitmap(),
+          contentDescription = "Note image",
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp)),
+          contentScale = ContentScale.Fit
+        )
+      }
+    }
   }
 }
 
